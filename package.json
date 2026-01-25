@@ -1,0 +1,17 @@
+{
+    "name": "api_guard",
+    "private": true,
+    "workspaces": [
+        "apps/*"
+    ],
+    "version": "1.0.0",
+    "description": "",
+    "scripts": {
+        "dev:server": "npm run dev --workspace=apps/server",
+        "dev:client": "npm run dev --workspace=apps/client"
+    },
+    "keywords": [],
+    "author": "",
+    "license": "ISC",
+    "type": "commonjs"
+}
