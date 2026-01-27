@@ -20,7 +20,7 @@ app.use(express.json());
 
 // Basic Health Check
 app.get('/', (req, res) => {
-    res.json({ status: 'ok', message: 'Resilience Engine Ready 🛡️' });
+    res.json({ status: 'ok', message: 'Resilience Engine Ready' });
 });
 
 // We will add routes here later

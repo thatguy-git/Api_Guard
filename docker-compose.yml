@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+    # 🐘 The Primary Database
+    postgres:
+        image: postgres:15-alpine
+        container_name: api-guard_postgres
+        restart: always
+        environment:
+            POSTGRES_USER: admin
+            POSTGRES_PASSWORD: Tofdks1400%24
+            POSTGRES_DB: api-guard_db
+        ports:
+            - '5430:5432'
+        volumes:
+            - postgres_data:/var/lib/postgresql/data
+
+    # ⚡ The Job Queue (For long-running tests)
+    redis:
+        image: redis:7-alpine
+        container_name: resilience_redis
+        restart: always
+        ports:
+            - '6370:6379'
+
+volumes:
+    postgres_data:
