@@ -1,6 +1,8 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import testRoutes from './routes/test.routes.js';
+import './workers/worker.js';
 
 dotenv.config();
 
@@ -25,6 +27,7 @@ app.get('/', (req, res) => {
 
 // We will add routes here later
 // app.use('/api/tests', testRoutes);
+app.use('/api/tests', testRoutes);
 
 app.listen(PORT, () => {
     console.log(`🚀 Server running on http://localhost:${PORT}`);
