@@ -2,6 +2,7 @@ import { Worker, Job } from 'bullmq';
 import { Redis } from 'ioredis';
 import { prisma } from '../lib/prisma.js';
 import { runIdempotencyTest } from '../engine/runners/idempotency.js';
+import { runRaceConditionTest } from '../engine/runners/race-conditions.js';
 import { TestJobData } from './queue.js';
 import { createRedisConnection } from '../lib/redis.js';
 
@@ -26,17 +27,27 @@ export const worker = new Worker<TestJobData>(
             let result;
 
             // 2. Select the correct runner
-            if (config.testType === 'IDEMPOTENCY') {
-                result = await runIdempotencyTest({
-                    url: config.url,
-                    method: config.method,
-                    headers: config.headers,
-                    body: config.body,
-                });
-            } else {
-                throw new Error(
-                    `Test type ${config.testType} not implemented yet`,
-                );
+            switch (config.testType) {
+                case 'IDEMPOTENCY':
+                    result = await runIdempotencyTest({
+                        url: config.url,
+                        method: config.method as any,
+                        headers: config.headers,
+                        body: config.body,
+                    });
+                    break;
+
+                case 'RACE_CONDITION':
+                    result = await runRaceConditionTest({
+                        url: config.url,
+                        method: config.method as any,
+                        headers: config.headers,
+                        body: config.body,
+                    });
+                    break;
+
+                default:
+                    throw new Error(`Unknown test type: ${config.testType}`);
             }
 
             // 3. Save Success to DB
@@ -71,4 +82,11 @@ export const worker = new Worker<TestJobData>(
 
 worker.on('ready', () =>
     console.log('🚀 Worker is ready and listening for jobs...'),
+);
+worker.on('error', (err) => console.error('❌ Worker Error:', err));
+worker.on('failed', (job, err) =>
+    console.error(`❌ Job ${job?.id} failed with error:`, err),
+);
+worker.on('completed', (job) =>
+    console.log(`✅ Job ${job?.id} completed successfully`),
 );
