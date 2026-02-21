@@ -5,6 +5,7 @@ import { runIdempotencyTest } from '../engine/runners/idempotency.js';
 import { runRaceConditionTest } from '../engine/runners/race-conditions.js';
 import { runRateLimitTest } from '../engine/runners/rate-limiting.js';
 import { runMassAssignmentTest } from '../engine/runners/mass-assignment.js';
+import { runSlowlorisTest } from '../engine/runners/slowloris.js';
 import { TestJobData } from './queue.js';
 import { createRedisConnection } from '../lib/redis.js';
 
@@ -63,6 +64,13 @@ export const worker = new Worker<TestJobData>(
                         method: config.method,
                         headers: config.headers,
                         body: config.body,
+                    });
+                    break;
+
+                case 'SLOWLORIS':
+                    result = await runSlowlorisTest({
+                        url: config.url,
+                        method: config.method,
                     });
                     break;
 

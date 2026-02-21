@@ -53,6 +53,7 @@ export const runMassAssignmentTest = async (
             baselineResponseData = text;
         }
     } catch (error: unknown) {
+        console.error(error);
         return {
             verdict: 'WARN',
             title: 'Baseline Failed',
