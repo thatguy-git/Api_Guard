@@ -11,7 +11,12 @@ export const testQueue = new Queue('test-execution-queue', { connection });
 export interface TestJobData {
     testRunId: string; // The ID in Postgres
     config: {
-        testType: 'IDEMPOTENCY' | 'RACE_CONDITION' | 'RATE_LIMITING';
+        testType:
+            | 'IDEMPOTENCY'
+            | 'RACE_CONDITION'
+            | 'RATE_LIMITING'
+            | 'SLOWLORIS'
+            | 'MASS_ASSIGNMENT';
         url: string;
         method: 'POST' | 'PUT' | 'DELETE' | 'PATCH';
         headers?: Record<string, string>;

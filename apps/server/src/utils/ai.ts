@@ -21,11 +21,17 @@ export interface RaceConstraint {
     reason: string;
 }
 
-export interface SecurityPayloads {
-    fields: string[];
+export interface MismatchVerdict {
+    verdict: 'PASS' | 'FAIL';
+    reason: string;
 }
 
-export interface MismatchVerdict {
+export interface PoisonedPayload {
+    poisonedBody: Record<string, unknown>;
+    injectedFields: string[];
+}
+
+export interface MassAssignmentVerdict {
     verdict: 'PASS' | 'FAIL';
     reason: string;
 }
@@ -151,18 +157,64 @@ export async function analyzeRaceConditionIntent(
 }
 
 //MASS ASSIGNMENT
-export async function generateMassAssignmentFields(
-    body: any,
-): Promise<SecurityPayloads> {
+export async function generateMassAssignmentPayload(
+    baselineBody: unknown,
+): Promise<PoisonedPayload> {
     const prompt = `
-    Analyze this payload: ${JSON.stringify(body)}
-    Suggest 5 sensitive fields a hacker might try to inject (e.g. isAdmin, role, balance).
-    Return JSON: { "fields": string[] }
+    Analyze this API request body. 
+    Baseline: ${JSON.stringify(baselineBody || {}).slice(0, 1000)}
+
+    Task: Act as a penetration tester. Generate a "poisoned" version of this body by injecting 3 to 5 common sensitive fields that developers often forget to filter out (e.g., isAdmin, role, balance, permissions, tenant_id, is_verified). 
+    Keep the original fields intact so the request still looks valid.
+
+    Return JSON strictly in this format:
+    {
+      "poisonedBody": { /* the merged original + malicious fields */ },
+      "injectedFields": ["role", "isAdmin", ...] /* just the names of the keys you added */
+    }
     `;
 
-    return askGroqJSON<SecurityPayloads>(
-        'You are a Security Researcher.',
+    return askGroqJSON<PoisonedPayload>(
+        'You are a strict Security Auditor. Output JSON only.',
         prompt,
-        { fields: [] },
+        {
+            poisonedBody: {
+                ...(baselineBody && typeof baselineBody === 'object'
+                    ? baselineBody
+                    : {}),
+                isAdmin: true,
+                role: 'admin',
+            },
+            injectedFields: ['isAdmin', 'role'],
+        },
+    );
+}
+
+export async function analyzeMassAssignmentResponse(
+    injectedFields: string[],
+    statusCode: number,
+    responseBody: unknown,
+): Promise<MassAssignmentVerdict> {
+    const prompt = `
+    I sent a Mass Assignment attack to an API.
+    I injected these sensitive fields: ${JSON.stringify(injectedFields)}
+    
+    The server responded with Status: ${statusCode}
+    Response Body: ${JSON.stringify(responseBody || '').slice(0, 1500)}
+
+    Did the server fall for the attack?
+    - PASS if: It returned a 400-level error (validation caught it), OR it returned 200/201 but stripped/ignored the malicious fields from the returned data.
+    - FAIL if: It returned 200/201 AND explicitly echoed back the injected fields (e.g., indicating they were successfully saved to the database).
+
+    Return JSON: { "verdict": "PASS" or "FAIL", "reason": "Short explanation" }
+    `;
+
+    return askGroqJSON<MassAssignmentVerdict>(
+        'You are a Security Auditor evaluating an API response. Output JSON only.',
+        prompt,
+        {
+            verdict: 'FAIL',
+            reason: 'AI fallback: Assume vulnerable if analysis fails.',
+        },
     );
 }

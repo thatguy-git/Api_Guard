@@ -2,7 +2,12 @@ import { z } from 'zod';
 
 export const RunTestSchema = z.object({
     projectId: z.string().optional(),
-    testType: z.enum(['IDEMPOTENCY', 'RACE_CONDITION', 'RATE_LIMIT']),
+    testType: z.enum([
+        'IDEMPOTENCY',
+        'RACE_CONDITION',
+        'RATE_LIMITING',
+        'MASS_ASSIGNMENT',
+    ]),
     endpoint: z.string().url({ message: 'Invalid URL format' }),
     method: z.enum(['POST', 'PUT', 'DELETE', 'PATCH', 'GET']),
     headers: z.record(z.string(), z.string()).optional(),

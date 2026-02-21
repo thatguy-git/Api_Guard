@@ -4,6 +4,7 @@ import { prisma } from '../lib/prisma.js';
 import { runIdempotencyTest } from '../engine/runners/idempotency.js';
 import { runRaceConditionTest } from '../engine/runners/race-conditions.js';
 import { runRateLimitTest } from '../engine/runners/rate-limiting.js';
+import { runMassAssignmentTest } from '../engine/runners/mass-assignment.js';
 import { TestJobData } from './queue.js';
 import { createRedisConnection } from '../lib/redis.js';
 
@@ -56,6 +57,15 @@ export const worker = new Worker<TestJobData>(
                     });
                     break;
 
+                case 'MASS_ASSIGNMENT':
+                    result = await runMassAssignmentTest({
+                        url: config.url,
+                        method: config.method,
+                        headers: config.headers,
+                        body: config.body,
+                    });
+                    break;
+
                 default:
                     throw new Error(`Unknown test type: ${config.testType}`);
             }
@@ -72,8 +82,13 @@ export const worker = new Worker<TestJobData>(
             });
 
             console.log(`✅ Job ${job.id} finished: ${result.verdict}`);
-        } catch (error: any) {
-            console.error(`❌ Job ${job.id} failed:`, error);
+        } catch (error: unknown) {
+            // ✅ 4. Production error handling
+            const errorMessage =
+                error instanceof Error
+                    ? error.message
+                    : 'An unknown error occurred';
+            console.error(`❌ Job ${job.id} failed:`, errorMessage);
 
             // Save Failure to DB
             await prisma.testRun.update({
@@ -81,7 +96,7 @@ export const worker = new Worker<TestJobData>(
                 data: {
                     status: 'FAILED',
                     verdict: 'ERROR',
-                    logs: { error: error.message },
+                    logs: { error: errorMessage },
                     finishedAt: new Date(),
                 },
             });
