@@ -3,6 +3,7 @@ import { Redis } from 'ioredis';
 import { prisma } from '../lib/prisma.js';
 import { runIdempotencyTest } from '../engine/runners/idempotency.js';
 import { runRaceConditionTest } from '../engine/runners/race-conditions.js';
+import { runRateLimitTest } from '../engine/runners/rate-limiting.js';
 import { TestJobData } from './queue.js';
 import { createRedisConnection } from '../lib/redis.js';
 
@@ -39,6 +40,15 @@ export const worker = new Worker<TestJobData>(
 
                 case 'RACE_CONDITION':
                     result = await runRaceConditionTest({
+                        url: config.url,
+                        method: config.method as any,
+                        headers: config.headers,
+                        body: config.body,
+                    });
+                    break;
+
+                case 'RATE_LIMITING':
+                    result = await runRateLimitTest({
                         url: config.url,
                         method: config.method as any,
                         headers: config.headers,

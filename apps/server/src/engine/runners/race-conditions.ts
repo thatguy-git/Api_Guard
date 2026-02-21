@@ -7,12 +7,16 @@ interface RaceResult {
     meta: any;
 }
 
-export const runRaceConditionTest = async (config: {
+interface Config {
     url: string;
     method: string;
     headers?: any;
     body?: any;
-}): Promise<RaceResult> => {
+}
+
+export const runRaceConditionTest = async (
+    config: Config,
+): Promise<RaceResult> => {
     const BATCH_SIZE = 10; // Number of parallel requests to fire
     console.log(
         `🏎️ Starting Race Condition Test: firing ${BATCH_SIZE} requests at once...`,
