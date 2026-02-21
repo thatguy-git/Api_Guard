@@ -26,7 +26,6 @@ export const runMassAssignmentTest = async (
 ): Promise<MassAssignmentResult> => {
     console.log(`🕵️ Starting Mass Assignment Test on ${config.url}...`);
 
-    // Mass assignment doesn't apply to GET or DELETE requests usually
     if (config.method === 'GET' || config.method === 'DELETE') {
         return {
             verdict: 'PASS',
@@ -36,40 +35,73 @@ export const runMassAssignmentTest = async (
         };
     }
 
-    // 1. Generate the Poisoned Payload
+    const start = performance.now();
+
+    // 1. Fire the Baseline Request
+    console.log(`📡 Firing Baseline Request...`);
+    let baselineResponseData: unknown = null;
+    try {
+        const baselineRes = await fetch(config.url, {
+            method: config.method,
+            headers: config.headers as HeadersInit,
+            body: config.body ? JSON.stringify(config.body) : undefined,
+        });
+        const text = await baselineRes.text();
+        try {
+            baselineResponseData = JSON.parse(text);
+        } catch {
+            baselineResponseData = text;
+        }
+    } catch (error: unknown) {
+        return {
+            verdict: 'WARN',
+            title: 'Baseline Failed',
+            description: `Could not reach the endpoint to establish a baseline.`,
+            meta: {
+                statusCode: 0,
+                injectedFields: [],
+                durationMs: performance.now() - start,
+            },
+        };
+    }
+
+    // 2. Generate the Poisoned Payload
     const { poisonedBody, injectedFields } =
         await generateMassAssignmentPayload(config.body);
     console.log(`💉 Injecting fields: ${injectedFields.join(', ')}`);
 
-    const start = performance.now();
+    // Extract exactly what we injected so the AI knows what to look for
+    const injectedPayload: Record<string, unknown> = {};
+    for (const field of injectedFields) {
+        injectedPayload[field] = (poisonedBody as Record<string, unknown>)[
+            field
+        ];
+    }
 
-    // 2. Fire the Attack
-    let statusCode = 0;
-    let responseData: unknown = null;
+    // 3. Fire the Attack Request
+    console.log(`⚔️ Firing Attack Request...`);
+    let attackStatusCode = 0;
+    let attackResponseData: unknown = null;
 
     try {
-        const response = await fetch(config.url, {
+        const attackRes = await fetch(config.url, {
             method: config.method,
             headers: config.headers as HeadersInit,
             body: JSON.stringify(poisonedBody),
         });
 
-        statusCode = response.status;
-
-        // Safely attempt to parse JSON, fallback to text
-        const text = await response.text();
+        attackStatusCode = attackRes.status;
+        const text = await attackRes.text();
         try {
-            responseData = JSON.parse(text);
+            attackResponseData = JSON.parse(text);
         } catch {
-            responseData = text;
+            attackResponseData = text;
         }
     } catch (error: unknown) {
-        const errorMessage =
-            error instanceof Error ? error.message : 'Network error';
         return {
             verdict: 'WARN',
-            title: 'Request Failed',
-            description: `Could not reach the endpoint to test mass assignment: ${errorMessage}`,
+            title: 'Attack Failed',
+            description: `Could not reach the endpoint during the attack phase.`,
             meta: {
                 statusCode: 0,
                 injectedFields,
@@ -80,15 +112,17 @@ export const runMassAssignmentTest = async (
 
     const durationMs = performance.now() - start;
 
-    // 3. AI Analysis of the Response
-    console.log(`🧠 Analyzing response (${statusCode}) for vulnerability...`);
+    // 4. AI Analysis
+    console.log(
+        `🧠 Comparing baseline to attack response (${attackStatusCode})...`,
+    );
     const analysis = await analyzeMassAssignmentResponse(
-        injectedFields,
-        statusCode,
-        responseData,
+        injectedPayload,
+        baselineResponseData,
+        attackResponseData,
+        attackStatusCode,
     );
 
-    // 4. Final Formatting
     return {
         verdict: analysis.verdict,
         title:
@@ -97,7 +131,7 @@ export const runMassAssignmentTest = async (
                 : 'Mass Assignment Vulnerability',
         description: analysis.reason,
         meta: {
-            statusCode,
+            statusCode: attackStatusCode,
             injectedFields,
             durationMs: Number(durationMs.toFixed(2)),
         },

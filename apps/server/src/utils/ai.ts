@@ -191,26 +191,32 @@ export async function generateMassAssignmentPayload(
 }
 
 export async function analyzeMassAssignmentResponse(
-    injectedFields: string[],
+    injectedPayload: Record<string, unknown>,
+    baselineResponse: unknown,
+    attackResponse: unknown,
     statusCode: number,
-    responseBody: unknown,
 ): Promise<MassAssignmentVerdict> {
     const prompt = `
     I sent a Mass Assignment attack to an API.
-    I injected these sensitive fields: ${JSON.stringify(injectedFields)}
     
-    The server responded with Status: ${statusCode}
-    Response Body: ${JSON.stringify(responseBody || '').slice(0, 1500)}
+    1. INJECTED PAYLOAD: ${JSON.stringify(injectedPayload)}
+    2. BASELINE RESPONSE (Normal): ${JSON.stringify(baselineResponse || '').slice(0, 1000)}
+    3. ATTACK RESPONSE (Status ${statusCode}): ${JSON.stringify(attackResponse || '').slice(0, 1000)}
 
-    Did the server fall for the attack?
-    - PASS if: It returned a 400-level error (validation caught it), OR it returned 200/201 but stripped/ignored the malicious fields from the returned data.
-    - FAIL if: It returned 200/201 AND explicitly echoed back the injected fields (e.g., indicating they were successfully saved to the database).
+    Task: Did the server actually process and apply the malicious payload?
+    
+    - PASS if: 
+        a) The server returned a 4xx error (validation caught it).
+        b) The server returned 2xx, BUT the ATTACK RESPONSE matches the BASELINE RESPONSE for the injected fields. (e.g. If 'balance' is in both responses, but the value didn't change to the injected value, the server safely ignored the injection).
+        
+    - FAIL if: 
+        The server returned 2xx AND the ATTACK RESPONSE reflects the injected values (e.g. the 'balance' or 'role' in the response changed to match the malicious payload).
 
     Return JSON: { "verdict": "PASS" or "FAIL", "reason": "Short explanation" }
     `;
 
     return askGroqJSON<MassAssignmentVerdict>(
-        'You are a Security Auditor evaluating an API response. Output JSON only.',
+        'You are a Security Auditor evaluating an API response. Compare the baseline to the attack. Output JSON only.',
         prompt,
         {
             verdict: 'FAIL',
