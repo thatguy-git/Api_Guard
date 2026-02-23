@@ -8,6 +8,7 @@ export const RunTestSchema = z.object({
         'RATE_LIMITING',
         'MASS_ASSIGNMENT',
         'SLOWLORIS',
+        'BOLA',
     ]),
     endpoint: z.string().url({ message: 'Invalid URL format' }),
     method: z.enum(['POST', 'PUT', 'DELETE', 'PATCH', 'GET']),

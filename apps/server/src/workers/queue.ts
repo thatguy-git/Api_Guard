@@ -16,7 +16,8 @@ export interface TestJobData {
             | 'RACE_CONDITION'
             | 'RATE_LIMITING'
             | 'SLOWLORIS'
-            | 'MASS_ASSIGNMENT';
+            | 'MASS_ASSIGNMENT'
+            | 'BOLA';
         url: string;
         method: 'POST' | 'PUT' | 'DELETE' | 'PATCH';
         headers?: Record<string, string>;

@@ -36,6 +36,22 @@ export interface MassAssignmentVerdict {
     reason: string;
 }
 
+export interface SqliAttackVector {
+    type: 'SQL' | 'NoSQL';
+    poisonedBody: Record<string, unknown>;
+    injectedKeys: string[];
+}
+
+export interface SqliPayload {
+    poisonedBody: Record<string, unknown>;
+    injectedKeys: string[];
+}
+
+export interface SqliVerdict {
+    verdict: 'PASS' | 'FAIL';
+    reason: string;
+}
+
 async function askGroqJSON<T>(
     systemPrompt: string,
     userPrompt: string,
@@ -222,5 +238,53 @@ export async function analyzeMassAssignmentResponse(
             verdict: 'FAIL',
             reason: 'AI fallback: Assume vulnerable if analysis fails.',
         },
+    );
+}
+
+// --- SQLi Functions ---
+export async function generateSqliPayload(
+    baselineBody: unknown,
+): Promise<SqliPayload> {
+    const prompt = `
+    Analyze this API request body: ${JSON.stringify(baselineBody || {}).slice(0, 500)}
+
+    Generate a "poisoned" version testing for SQL/NoSQL Injection. Replace 1 or 2 string values with classic injection payloads (e.g., "' OR 1=1 --", '"; DROP TABLE users;', or MongoDB payload '{"$ne": null}'). 
+
+    Return JSON: { "poisonedBody": { ... }, "injectedKeys": ["email", "password", etc] }
+    `;
+    return askGroqJSON<SqliPayload>(
+        'You are a Pentester. Output JSON.',
+        prompt,
+        {
+            poisonedBody: {
+                ...((baselineBody as object) || {}),
+                injection: "' OR 1=1 --",
+            },
+            injectedKeys: ['injection'],
+        },
+    );
+}
+
+export async function analyzeSqliResponse(
+    statusCode: number,
+    responseBody: unknown,
+): Promise<SqliVerdict> {
+    const prompt = `
+    I sent an SQL/NoSQL Injection attack. Server responded with Status ${statusCode}.
+    Body: ${JSON.stringify(responseBody || '').slice(0, 1000)}
+
+    Did the attack succeed?
+    FAIL if: 
+    1. Status is 500 and the body leaks a raw database stack trace (e.g., "syntax error at or near", "MongoError").
+    2. Status is 200/201 and it bypassed authentication or dumped excessive records.
+    
+    PASS if: The server safely rejected it (400, 401, 403, 422) or threw a generic 500 without leaking DB internals.
+
+    Return JSON: { "verdict": "PASS" or "FAIL", "reason": "Short explanation" }
+    `;
+    return askGroqJSON<SqliVerdict>(
+        'You are a Security Auditor. Output JSON.',
+        prompt,
+        { verdict: 'FAIL', reason: 'Fallback' },
     );
 }
