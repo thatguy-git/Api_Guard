@@ -6,6 +6,8 @@ import { prisma } from '../lib/prisma.js';
 export const createTestRun = async (req: Request, res: Response) => {
     try {
         // 1. Validate Request
+        const currentUser = req.ip;
+        req.ips;
         const data = RunTestSchema.parse(req.body);
 
         // 2. Create DB Record (Pending)
@@ -31,7 +33,9 @@ export const createTestRun = async (req: Request, res: Response) => {
             },
         });
 
-        console.log(`🚀 Accepted Test Run: ${testRun.id}`);
+        console.log(
+            `🚀 Accepted Test Run: ${testRun.id} from user with the IP address: ${currentUser}`,
+        );
 
         // 4. Return ID to user
         res.status(202).json({
