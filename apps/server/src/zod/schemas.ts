@@ -9,11 +9,12 @@ export const RunTestSchema = z.object({
         'MASS_ASSIGNMENT',
         'SLOWLORIS',
         'BOLA',
+        'SQLI',
     ]),
-    endpoint: z.string().url({ message: 'Invalid URL format' }),
+    endpoint: z.url({ message: 'Invalid URL format' }),
     method: z.enum(['POST', 'PUT', 'DELETE', 'PATCH', 'GET']),
     headers: z.record(z.string(), z.string()).optional(),
-    body: z.any().optional(),
+    body: z.unknown().optional(),
     expectedStatus: z.number().int().optional(),
 });
 

@@ -8,6 +8,6 @@ import {
 
 const router = Router();
 
-router.post('/', testCreationLimiter, ssrfProtection, createTestRun);
+router.post('/', testCreationLimiter, createTestRun);
 
 export default router;

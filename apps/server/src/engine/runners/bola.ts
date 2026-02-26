@@ -1,8 +1,8 @@
 export interface BolaConfig {
     url: string;
     method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
-    headers: Record<string, string>; // User A (The Victim / Owner)
-    secondaryHeaders: Record<string, string>; // User B (The Attacker)
+    headers: Record<string, string> | undefined;
+    secondaryHeaders: Record<string, string> | undefined;
     body?: unknown;
 }
 

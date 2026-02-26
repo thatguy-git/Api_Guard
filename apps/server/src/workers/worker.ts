@@ -6,6 +6,8 @@ import { runRaceConditionTest } from '../engine/runners/race-conditions.js';
 import { runRateLimitTest } from '../engine/runners/rate-limiting.js';
 import { runMassAssignmentTest } from '../engine/runners/mass-assignment.js';
 import { runSlowlorisTest } from '../engine/runners/slowloris.js';
+import { runBolaTest } from '../engine/runners/bola.js';
+import { runSqliTest } from '../engine/runners/sqli.js';
 import { TestJobData } from './queue.js';
 import { createRedisConnection } from '../lib/redis.js';
 
@@ -71,6 +73,25 @@ export const worker = new Worker<TestJobData>(
                     result = await runSlowlorisTest({
                         url: config.url,
                         method: config.method,
+                    });
+                    break;
+
+                case 'BOLA':
+                    result = await runBolaTest({
+                        url: config.url,
+                        method: config.method,
+                        headers: config.headers,
+                        secondaryHeaders: config.secondaryHeaders,
+                        body: config.body,
+                    });
+                    break;
+
+                case 'SQLI':
+                    result = await runSqliTest({
+                        url: config.url,
+                        method: config.method,
+                        headers: config.headers,
+                        body: config.body,
                     });
                     break;
 

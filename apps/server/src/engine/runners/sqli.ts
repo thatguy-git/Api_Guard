@@ -1,10 +1,11 @@
+import { log } from 'node:console';
 import { generateSqliPayload, analyzeSqliResponse } from '../../utils/ai.js';
 
 export interface SqliConfig {
     url: string;
     method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
-    headers?: Record<string, string>;
-    body?: unknown;
+    headers: Record<string, string> | undefined;
+    body: unknown | undefined;
 }
 
 export interface SqliResult {
@@ -27,6 +28,8 @@ export const runSqliTest = async (config: SqliConfig): Promise<SqliResult> => {
     }
 
     const { poisonedBody } = await generateSqliPayload(config.body);
+    console.log(poisonedBody);
+
     const start = performance.now();
 
     let statusCode = 0;

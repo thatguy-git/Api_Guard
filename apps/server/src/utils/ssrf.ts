@@ -1,6 +1,13 @@
 import dns from 'dns';
 import { promisify } from 'util';
 
+const ALLOWED_TUNNEL_DOMAINS = [
+    'ngrok-free.app',
+    'ngrok.io',
+    'trycloudflare.com',
+    'localtunnel.me',
+];
+
 const lookupAsync = promisify(dns.lookup);
 
 /**
@@ -53,20 +60,30 @@ export const validateUrlSafety = async (targetUrl: string): Promise<void> => {
 
     const hostname = parsedUrl.hostname;
 
-    try {
-        // Resolve the hostname to an IP address
-        const { address } = await lookupAsync(hostname);
+    const isTunnel = ALLOWED_TUNNEL_DOMAINS.some((domain) =>
+        hostname.endsWith(domain),
+    );
 
-        // Check if the resolved IP is in a restricted range
+    if (isTunnel) {
+        return;
+    }
+
+    try {
+        const { address } = await lookupAsync(hostname);
         if (isPrivateIP(address)) {
-            throw new Error(
+            console.log(
                 `Target URL resolves to a restricted internal IP address (${address}).`,
             );
+
+            throw new Error(`Cannot resolve restricted address.`);
         }
-    } catch (error: any) {
-        if (error.code === 'ENOTFOUND') {
-            throw new Error('Could not resolve the hostname.');
+    } catch (error: unknown) {
+        if (error instanceof Error && error !== null) {
+            if ((error as any).code === 'ENOTFOUND') {
+                throw new Error('Could not resolve the hostname.');
+            }
         }
+
         throw error;
     }
 };

@@ -17,10 +17,12 @@ export interface TestJobData {
             | 'RATE_LIMITING'
             | 'SLOWLORIS'
             | 'MASS_ASSIGNMENT'
-            | 'BOLA';
+            | 'BOLA'
+            | 'SQLI';
         url: string;
         method: 'POST' | 'PUT' | 'DELETE' | 'PATCH';
         headers?: Record<string, string>;
+        secondaryHeaders?: Record<string, string>;
         body?: any;
     };
 }

@@ -14,26 +14,23 @@ const PORT = process.env.PORT;
 app.use(helmet());
 app.use(express.json({ limit: '100kb' }));
 
-// Middleware
+const CLIENT = process.env.CLIENT_BASE_URL;
 app.use(
     cors({
-        origin: 'https://myfrontend.com',
+        origin: CLIENT,
         credentials: true,
-        methods: ['GET', 'POST', 'PUT', 'DELETE'],
+        methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
         allowedHeaders: ['Content-Type', 'Authorization'],
     }),
 );
 app.use(express.json());
 
-// Basic Health Check
 app.get('/', (req, res) => {
-    res.json({ status: 'ok', message: 'Resilience Engine Ready' });
+    res.json({ status: 'ok', message: 'API GUARD UP' });
 });
 
-// We will add routes here later
-// app.use('/api/tests', testRoutes);
 app.use('/api/tests', testRoutes);
 
 app.listen(PORT, () => {
-    console.log(`🚀 Server running on http://localhost:${PORT}`);
+    console.log(`Server running on http://localhost:${PORT}`);
 });
