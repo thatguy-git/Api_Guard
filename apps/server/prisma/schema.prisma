@@ -29,3 +29,24 @@ model TestRun {
   finishedAt    DateTime?
   project       Project?  @relation(fields: [projectId], references: [id])
 }
+
+model User {
+  id         String    @id @default(cuid())
+  email      String    @unique
+  password   String
+  sessions   Session[]
+  lastLoginIp String?  // Track the most recent IP
+  createdAt  DateTime  @default(now())
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id])
+  refreshToken String   @unique
+  ipAddress    String?
+  userAgent    String?
+  isValid      Boolean  @default(true) // The "Kill Switch"
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+}

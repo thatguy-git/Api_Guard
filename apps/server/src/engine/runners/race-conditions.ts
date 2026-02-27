@@ -17,9 +17,9 @@ interface Config {
 export const runRaceConditionTest = async (
     config: Config,
 ): Promise<RaceResult> => {
-    const BATCH_SIZE = 10; // Number of parallel requests to fire
+    const BATCH_SIZE = 10;
     console.log(
-        `🏎️ Starting Race Condition Test: firing ${BATCH_SIZE} requests at once...`,
+        `Starting Race Condition Test: firing ${BATCH_SIZE} requests at once...`,
     );
 
     // 1. AI Analysis: "How many times SHOULD this succeed?"
@@ -44,9 +44,7 @@ export const runRaceConditionTest = async (
             `🤖 AI Constraint: Max ${constraint.max_successes} successes allowed. (${constraint.reason})`,
         );
     } catch (err) {
-        console.warn(
-            '⚠️ AI Analysis failed, defaulting to strict mode (Max 1).',
-        );
+        console.warn('AI Analysis failed, defaulting to strict mode (Max 1).');
     }
 
     // 2. The Attack (Parallel Burst)

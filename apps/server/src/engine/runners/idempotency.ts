@@ -39,7 +39,7 @@ export async function runIdempotencyTest(
     };
 
     try {
-        console.log('🚀 Firing Baseline Request...');
+        console.log('Firing Baseline Request...');
         const start1 = performance.now();
         const res1 = await axios(requestConfig);
         const time1 = performance.now() - start1;
@@ -58,19 +58,19 @@ export async function runIdempotencyTest(
             };
         }
 
-        console.log('🧠 Analyzing Response Pattern...');
+        console.log('Analyzing Response Pattern...');
 
         const schema = await analyzeIdempotencySchema(res1.data, res1.status);
 
-        console.log('🔄 Firing Replay Request...');
-        // Small delay to simulate real-world retry latency (optional but recommended)
-        await new Promise((r) => setTimeout(r, 500));
+        console.log('Firing Replay Request...');
+        // Small delay to simulate real-world retry latency
+        await new Promise((r) => setTimeout(r, 1000));
 
         const start2 = performance.now();
         const res2 = await axios(requestConfig);
         const time2 = performance.now() - start2;
 
-        console.log('⚖️  Verifying Results...');
+        console.log(' Verifying Results...');
 
         // Case A: Perfect Conflict Handling (The "Gold Standard")
         if (res1.status >= 200 && res1.status < 300 && res2.status === 409) {
@@ -94,7 +94,7 @@ export async function runIdempotencyTest(
         // Case B: Status Code Mismatch
         if (status1 !== status2) {
             console.log(
-                `🧠 Status Mismatch (${status1} vs ${status2}). Asking AI for verdict...`,
+                `Status Mismatch (${status1} vs ${status2}). Asking AI for verdict...`,
             );
 
             const aiJudgment = await evaluateIdempotencyMismatch(
@@ -103,7 +103,7 @@ export async function runIdempotencyTest(
             );
 
             return {
-                verdict: aiJudgment.verdict, // 'PASS' or 'FAIL' directly from AI
+                verdict: aiJudgment.verdict,
                 title:
                     aiJudgment.verdict === 'PASS'
                         ? 'Safe Idempotent Rejection'
@@ -119,7 +119,7 @@ export async function runIdempotencyTest(
         }
         if (status1 !== status2) {
             console.log(
-                `🧠 Status Mismatch (${status1} vs ${status2}). Asking AI for verdict...`,
+                `Status Mismatch (${status1} vs ${status2}). Asking AI for verdict...`,
             );
 
             const aiJudgment = await evaluateIdempotencyMismatch(
@@ -128,7 +128,7 @@ export async function runIdempotencyTest(
             );
 
             return {
-                verdict: aiJudgment.verdict, // 'PASS' or 'FAIL' directly from AI
+                verdict: aiJudgment.verdict,
                 title:
                     aiJudgment.verdict === 'PASS'
                         ? 'Safe Idempotent Rejection'
@@ -186,8 +186,7 @@ export async function runIdempotencyTest(
     }
 }
 
-// --- Helper: Logic Verifier ---
-
+//helper
 function validateBodies(
     body1: any,
     body2: any,

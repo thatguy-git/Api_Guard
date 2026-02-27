@@ -1,13 +1,13 @@
 import rateLimit from 'express-rate-limit';
 import { RedisStore } from 'rate-limit-redis';
 import { createRedisConnection } from '../lib/redis.js';
+import { Request } from 'express';
 
 // Reuse your existing Redis connection logic
 const redisClient = createRedisConnection();
 
 const customRedisCommand = async (...args: string[]): Promise<any> => {
     const [command, ...rest] = args;
-    // Cast the result to 'any' so it satisfies rate-limit-redis's strict RedisReply type
     return (await redisClient.call(command, ...rest)) as any;
 };
 
@@ -19,16 +19,23 @@ export const testCreationLimiter = rateLimit({
     }),
     windowMs: 15 * 60 * 1000, // 15 minutes
     max: 10,
+    keyGenerator: (req: Request) => {
+        if (typeof req.userId === 'string' && req.userId !== undefined) {
+            return req.userId;
+        }
+
+        return req.ip;
+    },
     standardHeaders: true,
     legacyHeaders: false,
     handler: (req, res) => {
         console.warn(
-            `🛑 Rate Limit Exceeded: ${req.ip} tried to run too many tests.`,
+            `Rate Limit Exceeded: ${req.ip} tried to run too many tests.`,
         );
         res.status(429).json({
             error: 'Too Many Requests',
             message:
-                'You have exceeded your testing quota (10 tests per 15 minutes). Please try again later.',
+                'You have exceeded your testing quota. Please try again later.',
         });
     },
 });
@@ -38,11 +45,11 @@ export const generalApiLimiter = rateLimit({
     store: new RedisStore({
         sendCommand: customRedisCommand,
     }),
-    windowMs: 1 * 60 * 1000, // 1 minute
-    max: 60, // Limit each IP to 60 requests per minute
+    windowMs: 1 * 60 * 1000,
+    max: 30,
     standardHeaders: true,
     legacyHeaders: false,
-    handler: (req, res) => {
+    handler: (_req, res) => {
         res.status(429).json({
             error: 'Too Many Requests',
             message: 'You are polling the API too fast. Slow down.',

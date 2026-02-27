@@ -76,7 +76,7 @@ export const runBolaTest = async (config: BolaConfig): Promise<BolaResult> => {
     try {
         const attackRes = await fetch(config.url, {
             method: config.method,
-            headers: config.secondaryHeaders as HeadersInit, // 😈 Inject Attacker Credentials
+            headers: config.secondaryHeaders as HeadersInit,
             body: config.body ? JSON.stringify(config.body) : undefined,
         });
         attackStatus = attackRes.status;
@@ -108,6 +108,7 @@ export const runBolaTest = async (config: BolaConfig): Promise<BolaResult> => {
         description = `The server correctly blocked User B from accessing the resource (Status ${attackStatus}).`;
     }
     // If User B gets a 2xx, check if the data actually leaked or if it's an empty success
+    // we might need to handle special cases where the response is 2xx but doesn't contain the expected data (e.g., empty response, generic success message)
     else if (attackStatus >= 200 && attackStatus < 300) {
         if (baselineText === attackText && baselineText.length > 10) {
             verdict = 'FAIL';

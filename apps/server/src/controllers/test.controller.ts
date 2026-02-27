@@ -5,12 +5,12 @@ import { prisma } from '../lib/prisma.js';
 
 export const createTestRun = async (req: Request, res: Response) => {
     try {
-        // 1. Validate Request
+        // Validate Request
         const currentUser = req.ip;
         req.ips;
         const data = RunTestSchema.parse(req.body);
 
-        // 2. Create DB Record (Pending)
+        //Create DB Record (Pending)
         const testRun = await prisma.testRun.create({
             data: {
                 testType: data.testType,
@@ -21,7 +21,7 @@ export const createTestRun = async (req: Request, res: Response) => {
             },
         });
 
-        // 3. Add to Queue
+        // Add to Queue
         await testQueue.add('execute-test', {
             testRunId: testRun.id,
             config: {
@@ -34,16 +34,17 @@ export const createTestRun = async (req: Request, res: Response) => {
         });
 
         console.log(
-            `🚀 Accepted Test Run: ${testRun.id} from user with the IP address: ${currentUser}`,
+            `Accepted Test Run: ${testRun.id} from user with the IP address: ${currentUser}`,
         );
 
-        // 4. Return ID to user
         res.status(202).json({
             status: 'queued',
             testRunId: testRun.id,
         });
-    } catch (error: any) {
-        console.error(error);
-        res.status(400).json({ error: 'Invalid Request', details: error });
+    } catch (error: unknown) {
+        if (error instanceof Error && error !== null) {
+            console.error(`Error creating test run: ${error.message}`);
+            throw new Error('Error creating test run');
+        }
     }
 };

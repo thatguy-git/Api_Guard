@@ -115,7 +115,7 @@ export const runMassAssignmentTest = async (
 
     // 4. AI Analysis
     console.log(
-        `🧠 Comparing baseline to attack response (${attackStatusCode})...`,
+        `Comparing baseline to attack response (${attackStatusCode})...`,
     );
     const analysis = await analyzeMassAssignmentResponse(
         injectedPayload,
