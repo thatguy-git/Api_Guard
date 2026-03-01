@@ -1,6 +1,5 @@
 generator client {
   provider = "prisma-client-js"
-  output   = "../node_modules/@prisma/client"
   engineType = "library"
 }
 
@@ -33,6 +32,7 @@ model TestRun {
 model User {
   id         String    @id @default(cuid())
   email      String    @unique
+  name       String
   password   String
   sessions   Session[]
   lastLoginIp String?  // Track the most recent IP

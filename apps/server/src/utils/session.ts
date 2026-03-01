@@ -18,7 +18,6 @@ export const createSession = async (
     userId: string,
     req: Request,
 ): Promise<SessionData> => {
-    // 1. Parse User Agent for Fingerprinting
     const ua = new UAParser(req.headers['user-agent']);
     const browser = ua.getBrowser().name || 'Unknown Browser';
     const os = ua.getOS().name || 'Unknown OS';
@@ -31,7 +30,6 @@ export const createSession = async (
         '0.0.0.0'
     ).toString();
 
-    // 2. Generate Tokens
     const accessToken = jwt.sign({ userId }, ACCESS_SECRET, {
         expiresIn: '15m',
     });
@@ -39,8 +37,6 @@ export const createSession = async (
         expiresIn: '7d',
     });
 
-    // 3. Persist Session & Update User's Last Seen IP
-    // We use a transaction to ensure both happen or neither happens
     await prisma.$transaction([
         prisma.user.update({
             where: { id: userId },
@@ -52,7 +48,7 @@ export const createSession = async (
                 refreshToken,
                 ipAddress,
                 userAgent: friendlyUserAgent,
-                expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 Days
+                expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
             },
         }),
     ]);

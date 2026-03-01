@@ -6,7 +6,6 @@ export const ssrfProtection = async (
     res: Response,
     next: NextFunction,
 ): Promise<void> => {
-    // Assuming your standard payload looks like: { endpoint: "https://api.com/...", testType: "..." }
     const targetUrl = req.body.endpoint || req.body.url;
 
     if (!targetUrl) {
@@ -16,17 +15,18 @@ export const ssrfProtection = async (
 
     try {
         await validateUrlSafety(targetUrl);
-        next(); // URL is safe, proceed to the controller
-    } catch (error: any) {
+        next();
+    } catch (error: unknown) {
         console.warn(
-            `🛡️ SSRF Blocked: ${req.ip} attempted to scan ${targetUrl} - ${error.message}`,
+            `SSRF Blocked: ${req.ip} attempted to scan ${targetUrl} - ${error instanceof Error ? error.message : 'Unknown error'}`,
         );
 
         res.status(403).json({
             error: 'SSRF Protection Triggered',
             message:
-                error.message ||
-                'The provided URL is unsafe or resolves to an internal network.',
+                error instanceof Error
+                    ? error.message
+                    : 'The provided URL is unsafe or resolves to an internal network.',
         });
     }
 };

@@ -3,7 +3,6 @@ import { RedisStore } from 'rate-limit-redis';
 import { createRedisConnection } from '../lib/redis.js';
 import { Request } from 'express';
 
-// Reuse your existing Redis connection logic
 const redisClient = createRedisConnection();
 
 const customRedisCommand = async (...args: string[]): Promise<any> => {
@@ -13,18 +12,17 @@ const customRedisCommand = async (...args: string[]): Promise<any> => {
 
 // 1. Strict Limiter: For creating new test runs (POST /api/tests)
 export const testCreationLimiter = rateLimit({
-    // Use Redis to store the request counts
     store: new RedisStore({
         sendCommand: customRedisCommand,
     }),
-    windowMs: 15 * 60 * 1000, // 15 minutes
+    windowMs: 15 * 60 * 1000,
     max: 10,
-    keyGenerator: (req: Request) => {
-        if (typeof req.userId === 'string' && req.userId !== undefined) {
+    keyGenerator: (req: Request): string => {
+        if (typeof req.userId === 'string') {
             return req.userId;
         }
 
-        return req.ip;
+        return req.ip ?? req.socket.remoteAddress ?? 'anonymous';
     },
     standardHeaders: true,
     legacyHeaders: false,

@@ -5,21 +5,31 @@ import { prisma } from '../lib/prisma.js';
 import { z } from 'zod';
 import { createSession } from '../utils/session.js';
 
-const ACCESS_SECRET = process.env.JWT_ACCESS_SECRET || 'access-secret';
-const REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'refresh-secret';
+if (!process.env.JWT_ACCESS_SECRET || !process.env.JWT_REFRESH_SECRET) {
+    console.log('Please set env variables for the access and refresh secret');
+    process.exit(1);
+}
 
-const AuthSchema = z.object({
+const ACCESS_SECRET = process.env.JWT_ACCESS_SECRET;
+const REFRESH_SECRET = process.env.JWT_REFRESH_SECRET;
+
+const SignupSchema = z.object({
     email: z.email(),
     password: z.string().min(8),
     name: z
         .string()
         .min(2, 'Name must be at least 2 characters long')
-        .max(70, 'Name must be at most 50 characters long'),
+        .max(70, 'Name must be at most 70 characters long'),
 });
+export const LoginSchema = SignupSchema.omit({ name: true });
+
+export type LoginRequest = z.infer<typeof LoginSchema>;
+export type SignupRequest = z.infer<typeof SignupSchema>;
 
 export const signup = async (req: Request, res: Response) => {
     try {
-        const { email, password, name } = AuthSchema.parse(req.body);
+        const data: SignupRequest = req.body;
+        const { email, password, name } = SignupSchema.parse(data);
 
         const existingUser = await prisma.user.findUnique({ where: { email } });
         if (existingUser)
@@ -31,15 +41,21 @@ export const signup = async (req: Request, res: Response) => {
         });
 
         res.status(201).json({ message: 'Identity created. Please log in.' });
-    } catch (error) {
+    } catch (error: unknown) {
         res.status(400).json({ error: 'Initialization failed' });
+        console.log(
+            error instanceof Error
+                ? error.message
+                : 'Unknown error during signup',
+        );
     }
 };
 
 export const login = async (req: Request, res: Response) => {
     try {
-        const { email, password } = AuthSchema.parse(req.body);
-        const userIp = req.ip || '0.0.0.0';
+        const data: LoginRequest = req.body;
+        const { email, password } = LoginSchema.parse(data);
+        const userIp = req.ip || req.socket.remoteAddress || '0.0.0.0';
 
         const user = await prisma.user.findUnique({ where: { email } });
         if (!user || !(await argon2.verify(user.password, password))) {
