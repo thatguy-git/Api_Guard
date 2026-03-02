@@ -2,6 +2,9 @@ import { Request } from 'express';
 import { UAParser } from 'ua-parser-js';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../lib/prisma.js';
+import { createRedisConnection } from '../lib/redis.js';
+
+const redis = createRedisConnection();
 
 const ACCESS_SECRET = process.env.JWT_ACCESS_SECRET || 'access-secret';
 const REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'refresh-secret';
@@ -52,6 +55,7 @@ export const createSession = async (
             },
         }),
     ]);
+    await redis.set(`sess:${refreshToken}`, userId, 'EX', 7 * 24 * 60 * 60);
 
     return { accessToken, refreshToken };
 };

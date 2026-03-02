@@ -1,4 +1,4 @@
-import rateLimit from 'express-rate-limit';
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import { RedisStore } from 'rate-limit-redis';
 import { createRedisConnection } from '../lib/redis.js';
 import { Request } from 'express';
@@ -17,13 +17,8 @@ export const testCreationLimiter = rateLimit({
     }),
     windowMs: 15 * 60 * 1000,
     max: 10,
-    keyGenerator: (req: Request): string => {
-        if (typeof req.userId === 'string') {
-            return req.userId;
-        }
-
-        return req.ip ?? req.socket.remoteAddress ?? 'anonymous';
-    },
+    keyGenerator: (req: Request) =>
+        req.userId ?? ipKeyGenerator(req.ip ?? 'unknown'),
     standardHeaders: true,
     legacyHeaders: false,
     handler: (req, res) => {

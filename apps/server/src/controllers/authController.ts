@@ -4,15 +4,18 @@ import jwt from 'jsonwebtoken';
 import { prisma } from '../lib/prisma.js';
 import { z } from 'zod';
 import { createSession } from '../utils/session.js';
+import { OAuth2Client } from 'google-auth-library';
+import { createRedisConnection } from '../lib/redis.js';
+
+const redis = createRedisConnection();
 
 if (!process.env.JWT_ACCESS_SECRET || !process.env.JWT_REFRESH_SECRET) {
     console.log('Please set env variables for the access and refresh secret');
     process.exit(1);
 }
-
 const ACCESS_SECRET = process.env.JWT_ACCESS_SECRET;
 const REFRESH_SECRET = process.env.JWT_REFRESH_SECRET;
-
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 const SignupSchema = z.object({
     email: z.email(),
     password: z.string().min(8),
@@ -58,7 +61,7 @@ export const login = async (req: Request, res: Response) => {
         const userIp = req.ip || req.socket.remoteAddress || '0.0.0.0';
 
         const user = await prisma.user.findUnique({ where: { email } });
-        if (!user || !(await argon2.verify(user.password, password))) {
+        if (!user || !(await argon2.verify(user.password!, password))) {
             return res.status(401).json({ error: 'Invalid credentials' });
         }
 
@@ -92,6 +95,73 @@ export const login = async (req: Request, res: Response) => {
     }
 };
 
+export const googleLogin = async (req: Request, res: Response) => {
+    try {
+        const { idToken } = req.body;
+
+        const ticket = await client.verifyIdToken({
+            idToken,
+            audience: process.env.GOOGLE_CLIENT_ID,
+        });
+
+        const payload = ticket.getPayload();
+
+        if (!payload || !payload.email || !payload.email_verified) {
+            return res.status(400).json({
+                error: 'Google identity unverified. Please verify your email with Google.',
+            });
+        }
+
+        const { email, name, picture, sub: googleId } = payload;
+
+        let user = await prisma.user.findUnique({ where: { googleId } });
+
+        if (!user) {
+            const existingEmailUser = await prisma.user.findUnique({
+                where: { email },
+            });
+
+            if (existingEmailUser) {
+                user = await prisma.user.update({
+                    where: { email },
+                    data: { googleId, authProvider: 'google' },
+                });
+            } else {
+                user = await prisma.user.create({
+                    data: {
+                        email,
+                        googleId,
+                        name: name || 'Google User',
+                        authProvider: 'google',
+                    },
+                });
+            }
+        }
+
+        // Standard Session Logic
+        const { accessToken, refreshToken } = await createSession(user.id, req);
+
+        res.cookie('refreshToken', refreshToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+            maxAge: 7 * 24 * 60 * 60 * 1000,
+        });
+
+        res.json({
+            accessToken,
+            user: {
+                id: user.id,
+                email: user.email,
+                name: user.name,
+                avatar: picture,
+            },
+        });
+    } catch (error) {
+        res.status(401).json({ error: 'Google authentication failed' });
+    }
+};
+
 export const logout = async (req: Request, res: Response) => {
     const refreshToken = req.cookies.refreshToken;
 
@@ -99,6 +169,7 @@ export const logout = async (req: Request, res: Response) => {
         return res.sendStatus(204).json({ message: 'No session found' });
 
     try {
+        await redis.del(`sess:${refreshToken}`);
         await prisma.session.update({
             where: { refreshToken },
             data: { isValid: false },
@@ -121,24 +192,33 @@ export const refresh = async (req: Request, res: Response) => {
         return res.status(401).json({ error: 'No session found' });
 
     try {
-        const session = await prisma.session.findUnique({
-            where: { refreshToken },
-            include: { user: true },
-        });
+        const userId = await redis.get(`sess:${refreshToken}`);
 
-        // Check if session is revoked, expired, or doesn't exist
-        if (!session || !session.isValid || session.expiresAt < new Date()) {
-            return res
-                .status(401)
-                .json({ error: 'Session invalid or expired' });
+        if (!userId) {
+            // Fallback: Check DB in case Redis was flushed/restarted
+            const dbSession = await prisma.session.findUnique({
+                where: { refreshToken },
+            });
+            if (
+                !dbSession ||
+                !dbSession.isValid ||
+                dbSession.expiresAt < new Date()
+            ) {
+                return res.status(401).json({ error: 'Session revoked' });
+            }
+            await redis.set(
+                `sess:${refreshToken}`,
+                dbSession.userId,
+                'EX',
+                7 * 24 * 60 * 60,
+            );
         }
 
         const newAccessToken = jwt.sign(
-            { userId: session.user.id },
-            ACCESS_SECRET,
+            { userId },
+            process.env.JWT_ACCESS_SECRET!,
             { expiresIn: '15m' },
         );
-
         res.json({ accessToken: newAccessToken });
     } catch (error) {
         res.status(401).json({ error: 'Refresh failed' });
