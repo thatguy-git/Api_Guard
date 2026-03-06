@@ -90,7 +90,12 @@ export const login = async (req: Request, res: Response) => {
         });
 
         res.json({ accessToken, user: { id: user.id, email: user.email } });
-    } catch (error) {
+    } catch (error: unknown) {
+        console.log(
+            error instanceof Error
+                ? error.message
+                : 'Unknown error during login',
+        );
         res.status(500).json({ error: 'Authentication error' });
     }
 };

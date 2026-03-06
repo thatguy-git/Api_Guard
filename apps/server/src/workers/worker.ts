@@ -17,13 +17,12 @@ export const worker = new Worker<TestJobData>(
     'test-execution-queue',
     async (job: Job<TestJobData>) => {
         console.log(
-            `👷 Worker started job: ${job.id} (${job.data.config.testType})`,
+            `Worker started job: ${job.id} (${job.data.config.testType})`,
         );
 
         const { testRunId, config } = job.data;
 
         try {
-            // 1. Update DB to RUNNING
             await prisma.testRun.update({
                 where: { id: testRunId },
                 data: { status: 'RUNNING' },
@@ -31,7 +30,6 @@ export const worker = new Worker<TestJobData>(
 
             let result;
 
-            // 2. Select the correct runner
             switch (config.testType) {
                 case 'IDEMPOTENCY':
                     result = await runIdempotencyTest({
@@ -99,27 +97,24 @@ export const worker = new Worker<TestJobData>(
                     throw new Error(`Unknown test type: ${config.testType}`);
             }
 
-            // 3. Save Success to DB
             await prisma.testRun.update({
                 where: { id: testRunId },
                 data: {
                     status: 'COMPLETED',
                     verdict: result.verdict,
-                    resultSummary: result as any, // Save the full JSON report
+                    resultSummary: result as any,
                     finishedAt: new Date(),
                 },
             });
 
-            console.log(`✅ Job ${job.id} finished: ${result.verdict}`);
+            console.log(`Job ${job.id} finished: ${result.verdict}`);
         } catch (error: unknown) {
-            // ✅ 4. Production error handling
             const errorMessage =
                 error instanceof Error
                     ? error.message
                     : 'An unknown error occurred';
-            console.error(`❌ Job ${job.id} failed:`, errorMessage);
+            console.error(`Job ${job.id} failed:`, errorMessage);
 
-            // Save Failure to DB
             await prisma.testRun.update({
                 where: { id: testRunId },
                 data: {
